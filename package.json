@@ -1,0 +1,13 @@
+{
+  "name": "turbo-for-miros",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser extension that speeds up app.miros.work by prefetching, deduplicating and reusing its Supabase requests.",
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "node --test \"tests/*.test.mjs\"",
+    "package": "node scripts/package.mjs",
+    "version:set": "node scripts/set-version.mjs"
+  }
+}

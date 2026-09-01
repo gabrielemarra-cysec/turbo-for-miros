@@ -1,0 +1,6 @@
+node_modules/
+dist/
+*.zip
+# HAR captures contain session tokens — never commit them
+*.har
+.DS_Store

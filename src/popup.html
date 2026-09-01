@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Turbo for Miros</title>
+    <style>
+      :root {
+        --ink: #16191f;
+        --paper: #f7f7f5;
+        --rule: #d8d8d2;
+        --muted: #6b6f76;
+        --signal: #1f6f6b;
+        --warn: #8a4b2a;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ink: #e9e9e4;
+          --paper: #14171b;
+          --rule: #2c3138;
+          --muted: #8b9099;
+          --signal: #4fb3ad;
+          --warn: #d08a5e;
+        }
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        width: 286px;
+        margin: 0;
+        padding: 16px 16px 14px;
+        background: var(--paper);
+        color: var(--ink);
+        font: 13px/1.45 ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+        font-variant-numeric: tabular-nums;
+      }
+
+      header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+        padding-bottom: 12px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
+
+      .state {
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .headline {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        padding: 4px 0 14px;
+        border-bottom: 1px solid var(--rule);
+      }
+
+      .count {
+        font-size: 44px;
+        line-height: 0.9;
+        font-weight: 300;
+        letter-spacing: -0.03em;
+        color: var(--signal);
+      }
+
+      .count-note {
+        font-size: 12px;
+        color: var(--muted);
+        max-width: 130px;
+      }
+
+      dl {
+        margin: 0;
+        padding: 10px 0 12px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        row-gap: 5px;
+        border-bottom: 1px solid var(--rule);
+      }
+
+      dt { color: var(--muted); font-size: 12px; }
+      dd { margin: 0; text-align: right; font-size: 12px; }
+
+      .controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding-top: 12px;
+      }
+
+      label.toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      input[type="checkbox"] { accent-color: var(--signal); margin: 0; }
+
+      button {
+        font: inherit;
+        font-size: 12px;
+        color: var(--ink);
+        background: transparent;
+        border: 1px solid var(--rule);
+        border-radius: 3px;
+        padding: 4px 9px;
+        cursor: pointer;
+      }
+
+      button:hover { border-color: var(--signal); color: var(--signal); }
+      button:focus-visible { outline: 2px solid var(--signal); outline-offset: 1px; }
+
+      .message {
+        color: var(--muted);
+        padding: 6px 0 2px;
+      }
+
+      .message b { color: var(--ink); font-weight: 600; }
+
+      .footnote {
+        margin: 10px 0 0;
+        padding-top: 10px;
+        border-top: 1px solid var(--rule);
+        font-size: 11px;
+        line-height: 1.4;
+        color: var(--muted);
+      }
+
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Turbo for Miros</h1>
+      <span class="state" id="state"></span>
+    </header>
+
+    <div id="panel" hidden>
+      <div class="headline">
+        <span class="count" id="saved">0</span>
+        <span class="count-note">requests avoided on this tab</span>
+      </div>
+
+      <dl>
+        <dt>Fetched ahead of the app</dt><dd id="pre">0</dd>
+        <dt>Built from data we had</dt><dd id="der">0</dd>
+        <dt>Answered from memory</dt><dd id="mem">0</dd>
+        <dt>Answered from last visit</dt><dd id="disk">0</dd>
+        <dt>Merged while in flight</dt><dd id="dedup">0</dd>
+        <dt>Sent to Supabase</dt><dd id="net">0</dd>
+      </dl>
+
+      <div class="controls">
+        <label class="toggle">
+          <input type="checkbox" id="enabled" />
+          <span>Speed up this site</span>
+        </label>
+        <button id="clear">Clear cache</button>
+      </div>
+
+      <p class="footnote">
+        Booking data is always fetched live. Only reference data such as spaces,
+        plans and members is reused between visits.
+      </p>
+    </div>
+
+    <p class="message" id="message" hidden></p>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
