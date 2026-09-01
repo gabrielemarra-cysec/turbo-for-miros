@@ -1,17 +1,25 @@
 # Turbo for Miros
 
-A browser extension that makes the [Miros](https://app.miros.work) meeting
-room reservation webapp load in well under a second instead of ~8 seconds, by
-prefetching, deduplicating and reusing the backend requests the app was going
-to make anyway.
+A browser extension that speeds up the [Miros](https://app.miros.work) meeting
+room reservation webapp by prefetching, deduplicating and reusing the backend
+requests the app was going to make anyway. On captures of the calendar route
+it cut load time from several seconds to well under one.
 
 > Not affiliated with, endorsed by, or connected to Miros. "Miros" is used only
 > to identify the site this extension works with. All trademarks belong to
 > their respective owners.
 
-## The problem
+> **Use at your own risk.** This extension rewrites how the site fetches data.
+> A site update can break the extension, and a bug in the extension can break
+> the site — stale views, missing data, or a page that fails to load. If
+> anything looks wrong, turn it off from the toolbar popup (or add `#noturbo`
+> to the URL), clear the cache, and reload.
 
-From a HAR capture of one cached reload of the calendar view:
+## Where the time goes
+
+These measurements are from a HAR capture of one cached reload of the calendar
+view, taken in September 2026. The app is under active development and may
+have improved since; re-measure before assuming they still hold.
 
 | | |
 |---|---|
@@ -29,8 +37,9 @@ times in a row with identical results, and eleven `get-reservation-by-space`
 calls duplicate data already contained in the single
 `get-reservation-by-company` response.
 
-Fixing this properly means changing the app. This extension works around it
-from the client side.
+None of this is unusual for a young product, and only the vendor can address
+it in the app itself. This extension works around it from the client side in
+the meantime.
 
 ## What it does
 
@@ -99,20 +108,35 @@ nothing new.
 
 ## Install
 
-Chrome, Edge, Brave, or any Chromium browser (111+).
-
-1. Download the zip from the [latest release](../../releases/latest) and
-   unpack it, or clone this repo and use the `src/` folder.
-2. Open `chrome://extensions`
-3. Turn on **Developer mode**
-4. Click **Load unpacked** and select the unpacked folder
-5. Reload `app.miros.work`
+Download the zip from the [latest release](../../releases/latest) and unpack
+it, or clone this repo and use the `src/` folder.
 
 The first load after installing is unchanged. The second is fast, because that
 is when the route manifest exists.
 
-Firefox 128+ supports `world: "MAIN"` in MV3 content scripts, so it should
-work there too, but it is untested.
+### Chrome, Edge, Brave, or any Chromium browser (111+)
+
+1. Open `chrome://extensions`
+2. Turn on **Developer mode**
+3. Click **Load unpacked** and select the unpacked folder
+4. Reload `app.miros.work`
+
+### Firefox (140+)
+
+1. Open `about:debugging#/runtime/this-firefox`
+2. Click **Load Temporary Add-on…** and select `manifest.json` inside the
+   unpacked folder
+3. Firefox treats MV3 host permissions as opt-in: open the site, click the
+   extension's icon in the toolbar (puzzle piece menu), and grant it
+   permission to access `app.miros.work` — or do it from
+   `about:addons` → Turbo for Miros → **Permissions**
+4. Reload `app.miros.work`
+
+A temporary add-on is removed when Firefox restarts. For a permanent install,
+Firefox requires the extension to be signed: run it through
+[AMO unlisted self-distribution](https://extensionworkshop.com/documentation/publish/submitting-an-add-on/)
+yourself, or use Firefox Developer Edition / Nightly with
+`xpinstall.signatures.required` set to `false` in `about:config`.
 
 ## Controls
 
@@ -152,8 +176,9 @@ break it:
 No dependencies. Node 20+.
 
 ```sh
-npm test           # unit tests: loads src/inject.js in a vm and simulates the app
-npm run package    # builds dist/turbo-for-miros-v<version>.zip
+npm test                     # unit tests: loads src/inject.js in a vm and simulates the app
+npx --yes addons-linter src  # validates the manifest and code for Firefox
+npm run package              # builds dist/turbo-for-miros-v<version>.zip
 ```
 
 Layout:

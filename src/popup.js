@@ -18,7 +18,7 @@ async function runInPage(tabId, func, args = []) {
 function showMessage(text) {
   $("panel").hidden = true;
   const el = $("message");
-  el.innerHTML = text;
+  el.textContent = text;
   el.hidden = false;
 }
 
@@ -41,7 +41,7 @@ async function refresh() {
 
   if (!tab || !/^https:\/\/app\.miros\.work\//.test(tab.url || "")) {
     $("state").textContent = "";
-    showMessage("Open <b>app.miros.work</b> to see what this is doing.");
+    showMessage("Open app.miros.work to see what this is doing.");
     return null;
   }
 
