@@ -5,6 +5,9 @@ room reservation webapp by prefetching, deduplicating and reusing the backend
 requests the app was going to make anyway. On captures of the calendar route
 it cut load time from several seconds to well under one.
 
+It also offers each new reservation as a calendar event, so a booking does not
+have to be retyped into your own calendar.
+
 > Not affiliated with, endorsed by, or connected to Miros. "Miros" is used only
 > to identify the site this extension works with. All trademarks belong to
 > their respective owners.
@@ -76,6 +79,39 @@ Measured on real captures of the calendar route:
 | Dedup and disk cache only | 18 | 1058 ms |
 | Plus prefetch and derivation | ~7 | under 700 ms |
 
+## Add to calendar
+
+When a booking succeeds, a small panel appears in the corner of the page with
+two ways to keep it:
+
+- **Add to Google Calendar** — a Google
+  [event template](https://calendar.google.com/calendar/render) link, prefilled.
+  Google shows you its own event form and nothing is saved until you press save
+  there.
+- **Download .ics** — an RFC 5545 file for Outlook, Apple Calendar or anything
+  else.
+
+The event is built from the `create-reservation` response and the room's own
+record in `get-bookable-spaces`, which the extension has already cached:
+
+| | |
+|---|---|
+| Title | `Miros - <booking name> - Room <room name>` |
+| Location | `<room name> — <venue>, <street>, <zip> <city>, <country>` |
+| Times | taken as UTC, exactly as the API returns them |
+
+So a 10:00 booking of the "Startup" room reads
+`Miros - CYSEC - Room Startup`, located at
+`Startup — Le VillageByCA Toulouse 31, 31 ALLEES JULES GUESDE, 31000 TOULOUSE, France`.
+An empty booking name is simply left out of the title.
+
+Times are anchored in UTC rather than a guessed timezone, so the event lands at
+the right moment whatever timezone your calendar is set to. If the booking name
+is blank or the room is not in the cache, the panel still appears with whatever
+is known.
+
+Turn it off from the popup, or with `__mirosTurbo.set({ calendar: false })`.
+
 ## Freshness and safety
 
 - Reservation data is never written to `localStorage` and never read from it.
@@ -100,6 +136,13 @@ Everything stays in your browser. The extension talks only to the same
 Supabase backend the site itself uses, sends only requests the app was going
 to send anyway (and fewer of them in total), and collects no analytics or
 telemetry of any kind.
+
+The calendar panel does not change that: the Google link is an ordinary link,
+and the extension never follows it. If you click it, your browser navigates to
+Google with the event title, times and room address in the URL — the same thing
+that happens when you use Google's "add event" links anywhere else. Not clicking
+sends nothing. The `.ics` file is generated locally and never leaves the
+machine.
 
 The session token the page already holds may be mirrored to `localStorage` on
 the site's own origin so the next visit can prefetch before the app boots. It
@@ -140,8 +183,8 @@ yourself, or use Firefox Developer Edition / Nightly with
 
 ## Controls
 
-Click the toolbar icon for counters, an on/off switch, and a "Clear cache"
-button.
+Click the toolbar icon for counters, switches for the speedup and the calendar
+offer, and a "Clear cache" button.
 
 From the page console:
 
@@ -153,6 +196,7 @@ __mirosTurbo.purge()               // drop everything
 __mirosTurbo.set({ log: true })    // log every decision
 __mirosTurbo.set({ prefetch: false })
 __mirosTurbo.set({ derive: false })
+__mirosTurbo.set({ calendar: false })
 __mirosTurbo.set({ enabled: false })
 ```
 
@@ -165,6 +209,10 @@ break it:
 
 - Renamed or restructured edge function endpoints. Update `RULES` in
   `src/inject.js`.
+- A renamed `create-reservation` endpoint silently stops the calendar panel.
+  Update `CREATE_RESERVATION` in `src/inject.js`. Editing or cancelling a
+  booking deliberately does not touch a calendar event you already saved —
+  `update-reservation` and `delete-reservation` are not hooked.
 - A route whose data genuinely changes between the prefetch and the app's own
   request. Reservations are already excluded; if another endpoint turns out to
   be time-sensitive, move it to the `live` tier.
@@ -176,7 +224,7 @@ break it:
 No dependencies. Node 20+.
 
 ```sh
-npm test                     # unit tests: loads src/inject.js in a vm and simulates the app
+npm test                     # unit tests: loads the content scripts in a vm and simulates the app
 npx --yes addons-linter src  # validates the manifest and code for Firefox
 npm run package              # builds dist/turbo-for-miros-v<version>.zip
 ```
@@ -184,8 +232,9 @@ npm run package              # builds dist/turbo-for-miros-v<version>.zip
 Layout:
 
 ```
-src/manifest.json   MV3 manifest, one MAIN-world content script
+src/manifest.json   MV3 manifest, two MAIN-world content scripts
 src/inject.js       the fetch wrapper, prefetcher and cache
+src/calendar.js     builds the Google/.ics links and renders the offer
 src/popup.html      counters and controls
 src/popup.js        reads stats out of the page
 tests/              node:test suite with a sandboxed fetch harness

@@ -1,5 +1,5 @@
-// Boots src/inject.js inside a vm sandbox with a fake window, localStorage,
-// cookies and fetch, so the wrapper can be exercised without a browser.
+// Boots the content scripts inside a vm sandbox with a fake window, DOM,
+// localStorage, cookies and fetch, so they can be exercised without a browser.
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -7,7 +7,10 @@ import path from "node:path";
 import vm from "node:vm";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const SOURCE = readFileSync(path.join(here, "..", "src", "inject.js"), "utf8");
+const read = (f) => readFileSync(path.join(here, "..", "src", f), "utf8");
+
+// Same order as the manifest's content_scripts js array.
+export const SOURCES = { "calendar.js": read("calendar.js"), "inject.js": read("inject.js") };
 
 export const SUPABASE = "https://example-project.supabase.co";
 
@@ -55,6 +58,54 @@ export function sessionCookie(token) {
   return `sb-example-auth-token=${value}`;
 }
 
+/* --- DOM stub ----------------------------------------------------------- */
+
+// Just enough element for the calendar toast: styles, a shadow root, children
+// and a click listener. Nothing here pretends to be a real DOM.
+function fakeElement(tagName) {
+  const el = {
+    tagName: String(tagName).toUpperCase(),
+    style: {},
+    children: [],
+    textContent: "",
+    shadow: null,
+    removed: false,
+    appendChild(child) {
+      el.children.push(child);
+      return child;
+    },
+    attachShadow() {
+      el.shadow = fakeElement("#shadow-root");
+      return el.shadow;
+    },
+    addEventListener(type, fn) {
+      (el.listeners[type] ||= []).push(fn);
+    },
+    click() {
+      for (const fn of el.listeners.click || []) fn();
+    },
+    remove() {
+      el.removed = true;
+    },
+  };
+  el.listeners = {};
+  return el;
+}
+
+// Every element in a subtree, shadow roots included.
+export function descendants(node) {
+  if (!node) return [];
+  const kids = [...(node.children || []), ...(node.shadow ? [node.shadow] : [])];
+  return [node, ...kids.flatMap(descendants)];
+}
+
+export const anchors = (node) => descendants(node).filter((e) => e.tagName === "A");
+
+// The real URL, plus the object-URL statics the toast looks for.
+class SandboxURL extends URL {}
+SandboxURL.createObjectURL = (blob) => `blob:sandbox/${blob && blob.size}`;
+SandboxURL.revokeObjectURL = () => {};
+
 /**
  * Load inject.js in a sandbox.
  *
@@ -87,11 +138,19 @@ export function boot({ routes = {}, storage = new FakeStorage(), cookie = "", pa
     },
   };
 
+  const body = fakeElement("body");
+  const document = {
+    cookie,
+    visibilityState: "visible",
+    body,
+    createElement: fakeElement,
+  };
+
   const sandbox = {
     window: win,
     localStorage: storage,
     location,
-    document: { cookie, visibilityState: "visible" },
+    document,
     addEventListener() {},
     setTimeout(fn, ms) {
       timers.push({ fn, ms });
@@ -99,22 +158,30 @@ export function boot({ routes = {}, storage = new FakeStorage(), cookie = "", pa
     },
     console,
     atob,
-    URL,
+    URL: SandboxURL,
+    URLSearchParams,
+    Blob,
     Response,
     Headers,
     Request,
   };
 
   vm.createContext(sandbox);
-  vm.runInContext(SOURCE, sandbox, { filename: "inject.js" });
+  for (const [filename, source] of Object.entries(SOURCES)) {
+    vm.runInContext(source, sandbox, { filename });
+  }
 
   return {
     fetch: (...args) => win.fetch(...args),
     turbo: win.__mirosTurbo,
+    calendar: win.__mirosTurboCalendar,
     calls,
     timers,
     storage,
     location,
+    document,
+    // The toasts the calendar offer appended, in order.
+    toasts: () => body.children,
     callsTo: (urlPrefix) => calls.filter((c) => c.url.startsWith(urlPrefix)),
   };
 }

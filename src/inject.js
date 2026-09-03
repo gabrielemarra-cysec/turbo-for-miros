@@ -26,7 +26,7 @@
   const NS = "__mirosTurbo";
   if (window[NS]) return;
 
-  const VERSION = "1.0.0";
+  const VERSION = "2.0.0";
   const CACHE_PREFIX = NS + ".c1:";
   const MANIFEST_PREFIX = NS + ".m1:";
   const CONFIG_KEY = NS + ".config";
@@ -74,9 +74,15 @@
   // avatar signing and token refresh both run on every page load.
   const NON_MUTATING_POST = /\/storage\/v1\/object\/sign\/|\/auth\/v1\/token\b/;
 
+  // The one endpoint that creates a booking. update- and delete-reservation are
+  // deliberately not hooked: an already-saved calendar event is the user's now.
+  const CREATE_RESERVATION = /\/functions\/v1\/create-reservation\b/;
+
   /* --- config ------------------------------------------------------------ */
 
-  const DEFAULT_CONFIG = { enabled: true, prefetch: true, persist: true, derive: true, log: false };
+  const DEFAULT_CONFIG = {
+    enabled: true, prefetch: true, persist: true, derive: true, calendar: true, log: false,
+  };
 
   function readConfig() {
     try {
@@ -106,6 +112,7 @@
     revalidations: 0,
     passthrough: 0,
     savedRequests: 0,
+    calendarOffers: 0,
   };
 
   const log = (...a) => config.log && console.debug("%c[turbo]", "color:#1f6f6b", ...a);
@@ -144,7 +151,7 @@
   function purge() {
     memory.clear();
     inflight.clear();
-    spaceOwners = null;
+    spaceRecords = null;
     ownKeys(CACHE_PREFIX).forEach(lsDel);
     log("cache cleared");
   }
@@ -386,17 +393,30 @@
   ------------------------------------------------------------------------- */
 
   const BY_SPACE = /\/functions\/v1\/get-reservation-by-space\?/;
-  let spaceOwners = null;
+  let spaceRecords = null;
 
-  function spaceCompanyMap() {
-    if (spaceOwners) return spaceOwners;
+  // id -> trimmed get-bookable-spaces record. Feeds both derivation
+  // (company_id) and the calendar offer (name, type, address).
+  function spaceIndex() {
+    if (spaceRecords) return spaceRecords;
     const map = new Map();
 
     const absorb = (text) => {
       try {
         const spaces = JSON.parse(text).spaces;
         if (!Array.isArray(spaces)) return;
-        for (const sp of spaces) if (sp && sp.id && sp.company_id) map.set(sp.id, sp.company_id);
+        for (const sp of spaces) {
+          if (!sp || !sp.id) continue;
+          map.set(sp.id, {
+            id: sp.id,
+            name: sp.name,
+            type: sp.type,
+            capacity: sp.capacity,
+            company_id: sp.company_id,
+            company_name: sp.company_name,
+            location: sp.location,
+          });
+        }
       } catch { /* ignore */ }
     };
 
@@ -408,7 +428,7 @@
       }
     }
 
-    if (map.size) spaceOwners = map;
+    if (map.size) spaceRecords = map;
     return map;
   }
 
@@ -421,7 +441,8 @@
     } catch { return null; }
     if (!spaceId) return null;
 
-    const companyId = spaceCompanyMap().get(spaceId);
+    const record = spaceIndex().get(spaceId);
+    const companyId = record && record.company_id;
     if (!companyId) return null;
 
     const companyUrl =
@@ -468,6 +489,22 @@
     }
 
     return pending.then(() => build() || nativeFetch(input, init));
+  }
+
+  /* --- calendar offer ---------------------------------------------------- */
+
+  // Offer the just-created booking as a calendar event. `spaces` is a snapshot
+  // taken before the POST, because purge() drops the space cache on the way past.
+  async function offerCalendar(res, spaces) {
+    const api = window.__mirosTurboCalendar;
+    if (!api) return;
+
+    const payload = JSON.parse(await res.text());
+    const reservation = payload && payload.reservation;
+    if (!reservation) return;
+
+    const space = spaces.get(reservation.space_id) || null;
+    if (api.present(reservation, space)) stats.calendarOffers++;
   }
 
   /* --- prefetch ---------------------------------------------------------- */
@@ -534,8 +571,13 @@
 
     if (method !== "GET") {
       const mutating = MUTATING_METHOD.test(method) && !NON_MUTATING_POST.test(url);
+      // Snapshot the space records before the request: purge() below clears the
+      // cache they come from, and the offer needs the room name and address.
+      const spaces = config.calendar && CREATE_RESERVATION.test(url) ? spaceIndex() : null;
       return nativeFetch(input, init).then((res) => {
         if (mutating && res.ok) purge();
+        // Deliberately not awaited: a booking must not wait on, or fail with, this.
+        if (spaces && res.ok) offerCalendar(res.clone(), spaces).catch(() => {});
         return res;
       });
     }
@@ -604,7 +646,13 @@
     version: VERSION,
     get config() { return { ...config }; },
     stats() {
-      return { ...stats, entries: memory.size, enabled: config.enabled, route: location.pathname };
+      return {
+        ...stats,
+        entries: memory.size,
+        enabled: config.enabled,
+        calendar: config.calendar,
+        route: location.pathname,
+      };
     },
     set(patch) {
       config = { ...config, ...patch };
