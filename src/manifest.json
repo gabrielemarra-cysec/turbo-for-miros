@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Turbo for Miros",
-  "version": "1.0.0",
-  "description": "Speeds up app.miros.work by prefetching, deduplicating and reusing the Supabase requests the app was going to make anyway.",
+  "version": "2.0.0",
+  "description": "Speeds up app.miros.work by prefetching, deduplicating and reusing its Supabase requests, and offers each new reservation as a calendar event.",
   "minimum_chrome_version": "111",
   "browser_specific_settings": {
     "gecko": {
@@ -19,7 +19,7 @@
   "content_scripts": [
     {
       "matches": ["https://app.miros.work/*"],
-      "js": ["inject.js"],
+      "js": ["calendar.js", "inject.js"],
       "run_at": "document_start",
       "world": "MAIN",
       "all_frames": false

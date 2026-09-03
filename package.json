@@ -1,9 +1,9 @@
 {
   "name": "turbo-for-miros",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "Browser extension that speeds up app.miros.work by prefetching, deduplicating and reusing its Supabase requests.",
+  "description": "Browser extension that speeds up app.miros.work by prefetching, deduplicating and reusing its Supabase requests, and offers each new reservation as a calendar event.",
   "license": "Apache-2.0",
   "scripts": {
     "test": "node --test \"tests/*.test.mjs\"",

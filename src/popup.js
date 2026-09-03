@@ -32,7 +32,9 @@ function render(stats) {
   $("disk").textContent = stats.diskHits;
   $("dedup").textContent = stats.dedup;
   $("net").textContent = stats.network;
+  $("cal").textContent = stats.calendarOffers;
   $("enabled").checked = stats.enabled;
+  $("calendar").checked = stats.calendar;
   $("state").textContent = stats.enabled ? "on" : "paused";
 }
 
@@ -64,6 +66,11 @@ $("enabled").addEventListener("change", async (e) => {
   const on = e.target.checked;
   await runInPage(tab.id, (v) => window.__mirosTurbo.set({ enabled: v }), [on]);
   $("state").textContent = on ? "on" : "paused";
+});
+
+$("calendar").addEventListener("change", async (e) => {
+  const tab = await activeTab();
+  await runInPage(tab.id, (v) => window.__mirosTurbo.set({ calendar: v }), [e.target.checked]);
 });
 
 $("clear").addEventListener("click", async () => {

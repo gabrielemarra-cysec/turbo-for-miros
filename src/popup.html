@@ -98,6 +98,11 @@
         padding-top: 12px;
       }
 
+      .toggles {
+        display: grid;
+        row-gap: 6px;
+      }
+
       label.toggle {
         display: inline-flex;
         align-items: center;
@@ -160,19 +165,27 @@
         <dt>Answered from last visit</dt><dd id="disk">0</dd>
         <dt>Merged while in flight</dt><dd id="dedup">0</dd>
         <dt>Sent to Supabase</dt><dd id="net">0</dd>
+        <dt>Calendar events offered</dt><dd id="cal">0</dd>
       </dl>
 
       <div class="controls">
-        <label class="toggle">
-          <input type="checkbox" id="enabled" />
-          <span>Speed up this site</span>
-        </label>
+        <div class="toggles">
+          <label class="toggle">
+            <input type="checkbox" id="enabled" />
+            <span>Speed up this site</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="calendar" />
+            <span>Offer calendar events</span>
+          </label>
+        </div>
         <button id="clear">Clear cache</button>
       </div>
 
       <p class="footnote">
         Booking data is always fetched live. Only reference data such as spaces,
-        plans and members is reused between visits. If the site misbehaves,
+        plans and members is reused between visits. Calendar links open in your
+        browser and are only followed if you click them. If the site misbehaves,
         turn this off and reload the page.
       </p>
     </div>
